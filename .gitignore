@@ -1,0 +1,5 @@
+week_*
+ml
+__pycache__
+archive
+resources/combos.pth
