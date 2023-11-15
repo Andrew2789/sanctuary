@@ -1,33 +1,14 @@
 from workshop_items import *
 from planning import *
-from solver_utils import *
+from sanct_utils import *
 from ocr import extract_cycle_from_screenshots, extract_cycle_from_snips
 import joblib, itertools
 from os import path, listdir, rename, makedirs
 from random import random, shuffle
 from multiprocessing import Pool
-from tqdm import tqdm
 from time import time
 
 NUM_PROCESSES = 12
-
-def remove_one_combo(cycle_combos, i):
-	if cycle_combos[i][1] == 1: #will be none left
-		del(cycle_combos[i])
-	else:
-		cycle_combos[i] = (cycle_combos[i][0], cycle_combos[i][1] - 1) #decrease its num workshops by 1
-
-def remove_combos(cycle_combos, indices, sorted=False):
-	"""sorted: indices sorted in ascending order?"""
-	if not sorted: indices = sorted(indices)
-	for i in reversed(indices):
-		remove_one_combo(cycle_combos, i)
-
-def get_possible_indices(cycle_combos):
-	possible_indices = []
-	for i, (combo, num_workshops) in enumerate(cycle_combos):
-		possible_indices += [i]*num_workshops
-	return possible_indices
 
 def find_best_crafts_iter_combo_value_chunk(param_chunk, cycle, cycle_index, cycle_starting_grooves, cycle_starting_amounts_produced, season_data):
 	"""note: this only tests permutation 0 of each combo, with 3 workshops and nothing else on that cycle, and no concern for later cycles. this is acceptable for runtime i think seeing as its just the coarse pass"""
@@ -144,13 +125,11 @@ def find_best_crafts_iter(items_by_name, combos, season_data, pred_cycle, locked
 			arg_sets = [(param_chunk, cycle, cycle_index, cycle_starting_grooves, cycle_starting_amounts_produced, season_data) for (cycle_index, cycle, param_chunk) in combo_chunks]
 			processed_chunks = pool.starmap(find_best_crafts_iter_combo_value_chunk, arg_sets)
 
-		# cycle_valued_combos = dict()
 		# recombine processed chunks by cycle
 		for cycle_index in set([cycle_index for cycle_index, _ in processed_chunks]):
 			cycle_valued_combos[cycle_index] = [] #clear any cycles that were reprocessed this iteration
 		for cycle_index, valued_comboes in processed_chunks:
 			cycle_valued_combos[cycle_index] += valued_comboes
-			# cycle_valued_combos[cycle_index] = cycle_valued_combos.get(cycle_index, []) + valued_comboes
 
 		if verbose: print(f"combo time: {time() - start_time:.2f}s\t", end="")
 		start_time = time()
@@ -269,30 +248,10 @@ def find_best_crafts_iter(items_by_name, combos, season_data, pred_cycle, locked
 				print(f"No improvement, exiting... (max used rank {max_used_rank})")
 
 	final_plan = Plan(rest_days, current_best_combos, season_data)
+	print(f"Final plan for rest days {rest_days}: ")
+	final_plan.display()
 
 	return (max_used_rank, final_plan)
-
-def get_amt_favours_produced(combo, favours, capped, num_workshops=1):
-	"""
-	capped: whether to only return produced amts if not exceeding the amt needed
-	"""
-	incentive = dict()
-	if type(combo) is Combo:
-		combo = combo.permutations[0]
-
-	combo_amts_produced = dict()
-	for i, item in enumerate(combo):
-		efficiency_bonus = get_efficiency_bonus(combo, i)
-		combo_amts_produced[item.name] = combo_amts_produced.get(item.name, 0) + efficiency_bonus*num_workshops
-
-	for name in favours.keys():
-		amt_made = combo_amts_produced.get(name, 0)
-		if capped and favours[name] > 0 and amt_made > 0:
-			incentive[name] = min(amt_made, favours[name])
-		else:
-			incentive[name] = amt_made
-
-	return incentive
 
 def add_favours_combo_value_chunk(param_chunk, cycle, cycle_index, favours, favour_incentive, cycle_starting_grooves, cycle_starting_amounts_produced, season_data):
 	valued_favour_comboes = []
@@ -433,19 +392,6 @@ def add_favours(favours, favour_combos, season_data, pred_cycle, craft_cycles, p
 
 	return final_plan
 
-def display_season_data(season_data):
-	by_code = dict()
-	for item_season_data in season_data.values():
-		if item_season_data.code not in by_code.keys():
-			by_code[item_season_data.code] = dict()
-		by_code[item_season_data.code][item_season_data.popularity] = by_code[item_season_data.code].get(item_season_data.popularity, []) + [item_season_data]
-
-	print(f"Season data:")
-	for code in sorted(by_code.keys()):
-		print(f"{code} (mults {[round(x, 2) for x in by_code[code][list(by_code[code].keys())[0]][0].supply_mult_guesses]}):")
-		for popularity in by_code[code].keys():
-			print(f"  {POPULARITY_BONUSES[popularity]:.1f}x pop: {[item_season_data.name.replace('Isleworks ', '') for item_season_data in by_code[code][popularity]]}")
-
 def find_plans_single_favours(combos, items_by_name, season_data, pred_cycle, locked_in_days=[], locked_in_rest_days=[1], favours=dict(), only_favours=False, threading=True, verbose=True):
 	if verbose: display_season_data(season_data)
 
@@ -555,45 +501,11 @@ def run_cycle_prediction(combos, items_by_name, week_num, pred_cycle, task_name,
 			threading=threading)
 
 	out_name = save_task(week_num, pred_cycle, task_name, best_plan)
-	# num_locked_in_combos = 0
-	# num_locked_in_rest_days = 0
-	# for i in range(1, pred_cycle + 1 + 1): #look ahead by 1 cycle
-	# 	if i in best_plan.rest_days:
-	# 		num_locked_in_rest_days += 1
-	# 	else:
-	# 		num_locked_in_combos += 1
-	# #save as json
-	# task_data = dict()
-	# task_data["name"] = task_name
-	# task_data["rest_days"] = best_plan.rest_days[:num_locked_in_rest_days]
-	# task_data["combos"] = combos_to_text_list(best_plan.best_combos[:num_locked_in_combos])
-
-	# task_data["full_rest_days"] = best_plan.rest_days
-	# task_data["full_combos"] = combos_to_text_list(best_plan.best_combos)
-	# out_name = f"c{pred_cycle}_{task_name}.json"
-	# write_json(path.join(f"week_{week_num}", "saves", out_name), task_data)
 
 	print()
-	best_plan.display(show_mats=True, show_copy_code=True, title=f"{task_name}, 6.5 week {week_num} day {pred_cycle}:", file_name=path.join(f"week_{week_num}", "display", f"c{pred_cycle}_{task_name}_display.txt"))
+	best_plan.display(show_mats=True, show_copy_code=False, show_rest_days=pred_cycle==4, add_tildes=True, title=f"{task_name}, 6.5 week {week_num} day {pred_cycle}:", file_name=path.join(f"week_{week_num}", "display", f"c{pred_cycle}_{task_name}_display.txt"))
 
 	return out_name
-
-
-def fix_name(name, items_by_name):
-	name_title = name.title()
-	if name_title in items_by_name.keys():
-		return name_title
-	elif "Isleworks " + name_title in items_by_name.keys():
-		return "Isleworks " + name_title
-	elif "Island " + name_title in items_by_name.keys():
-		return "Island " + name_title
-	elif "Isleberry " + name_title in items_by_name.keys():
-		return "Isleberry " + name_title
-	elif name_title == "Mammet Of The Cycle Award":
-		return "Mammet of the Cycle Award"
-	else:
-		raise ValueError(f"unknown craft name {name}")
-
 
 def run_tasks(week_num, pred_cycle):
 	if not path.exists(f"week_{week_num}"): #create folder for the week
@@ -632,7 +544,7 @@ def run_tasks(week_num, pred_cycle):
 	print(len(combos))
 
 	for task_name, task_dict in tasks.items():
-		if task_name in saves_dict.keys() and pred_cycle in saves_dict[task_name]:
+		if task_name in saves_dict.keys() and pred_cycle in saves_dict[task_name].keys():
 			replace = None
 			while replace not in ("y", "n", "s"):
 				replace = input(f"{saves_dict[task_name][pred_cycle]} already exists, replace? (y/n/s(kip)) ").lower()
@@ -677,7 +589,9 @@ def run_tasks(week_num, pred_cycle):
 
 		out_name = run_cycle_prediction(combos, items_by_name, week_num=week_num, pred_cycle=pred_cycle, task_name=task_name, locked_in_days=locked_in_days, locked_in_rest_days=locked_in_rest_days, blacklist=blacklist, favours=favours, only_favours=using_standard_combos)
 		if task_name == "Standard": #just made a standard pred, index it
-			saves_dict[task_name][pred_cycle] = out_name
+			if "Standard" not in saves_dict.keys():
+				saves_dict["Standard"] = dict()
+			saves_dict["Standard"][pred_cycle] = out_name
 		elif "blacklist" not in task_dict.keys() and "Standard" in saves_dict.keys() and pred_cycle in saves_dict["Standard"]:
 			standard_data = load_json(path.join(f"week_{week_num}", "saves", saves_dict["Standard"][pred_cycle]))
 			file_name = f"c{pred_cycle}_{task_name}.json"
@@ -772,7 +686,7 @@ def test_actual_supply():
 def test_casuals(casuals_text, week_num, pred_cycle):
 	items = load_items()
 	season_data = read_season_data(week_num, verbose=True, check_last_season=pred_cycle == 1)
-	# display_season_data(season_data)
+	display_season_data(season_data)
 	items_by_name = {item.name: item for item in items}
 
 	casuals_text = [line.strip() for line in casuals_text.lstrip().split("\n")]
@@ -833,13 +747,7 @@ def test_value_verbose(week_num, save_name):
 
 def main():
 	# blacklist = [
-	# 	#R17
-	# 	"Isleworks Brass Serving Dish",
-	# 	"Island Grinding Wheel",
-	# 	"Island Durium Tathlums",
-	# 	"Isleworks Gold Hairpin",
-	# 	"Mammet of the Cycle Award",
-	# 	#R18
+	# 	#Rank 18
 	# 	"Isleworks Fruit Punch",
 	# 	"Isleworks Buffalo Bean Salad",
 	# 	"Isleworks Peperoncino",
@@ -852,73 +760,25 @@ def main():
 	# predict_next_season(4, blacklist, blacklist_ingredients)
 
 	# simulate_day_by_day(week_num=6, start=1, end=4)
-	run_tasks(week_num=7, pred_cycle=1)
+	run_tasks(week_num=99, pred_cycle=3)
 	# test_value_verbose(week_num=5, save_name="c4_OldStnd.json")
-
 
 # 	test_casuals(casuals_text = 
 # 	"""
 # 	2
-# :OC_CulinaryKnife: Culinary Knife (4h)
-# :OC_SharkOil: Shark Oil (8h)
-# :OC_CulinaryKnife: Culinary Knife (4h)
-# :OC_SharkOil: Shark Oil (8h)
-
-# :OC_CoconutJuice: Coconut Juice (4h)
-# :OC_PumpkinPudding: Pumpkin Pudding (6h)
-# :OC_CoconutJuice: Coconut Juice (4h)
-# :OC_PumpkinPudding: Pumpkin Pudding (6h)
-# :OC_CoconutJuice: Coconut Juice (4h)
-
-# 	4
-# :OC_FruitPunch: Fruit Punch (4h)
-# :OC_Honey: Honey (4h)
-# :OC_IsleberryJam: Jam (6h)
-# :OC_Honey: Honey (4h)
-# :OC_IsleberryJam: Jam (6h)
-
-# :OC_CoconutJuice: Coconut Juice (4h)
-# :OC_FruitPunch: Fruit Punch (4h)
-# :OC_PumpkinPudding: Pumpkin Pudding (6h)
-# :OC_Honey: Honey (4h)
-# :OC_IsleberryJam: Jam (6h)
-
-# 	5
-# :OC_BrassServingDish: Brass Serving Dish (4h)
-# :OC_SilverEarCuffs: Silver Ear Cuffs (8h)
-# :OC_BrassServingDish: Brass Serving Dish (4h)
-# :OC_SilverEarCuffs: Silver Ear Cuffs (8h)
-
-# :OC_Butter: Butter (4h)
-# :OC_ScaleFingers: Scale Fingers (8h)
-# :OC_Earrings: Earrings (4h)
-# :OC_SilverEarCuffs: Silver Ear Cuffs (8h)
-
-# 	6
-# :OC_ParsnipSalad: Parsnip Salad (4h)
-# :OC_Bouillabaisse: Bouillabaisse (8h)
-# :OC_ParsnipSalad: Parsnip Salad (4h)
-# :OC_Bouillabaisse: Bouillabaisse (8h)
-
-# :OC_CornFlakes: Corn Flakes (4h)
-# :OC_PickledRadish: Pickled Radish (8h)
-# :OC_ParsnipSalad: Parsnip Salad (4h)
-# :OC_Bouillabaisse: Bouillabaisse (8h)
-
-# 	7
 # :OC_Natron: Natron (4h)
-# :OC_CawlCennin: Cawl Cennin (6h)
-# :OC_BoiledEgg: Boiled Egg (4h)
-# :OC_CawlCennin: Cawl Cennin (6h)
-# :OC_BoiledEgg: Boiled Egg (4h)
+# :OC_GardenScythe: Garden Scythe (6h)
+# :OC_SilverEarCuffs: Silver Ear Cuffs (8h)
+# :OC_GardenScythe: Garden Scythe (6h)
 
-# :OC_Earrings: Earrings (4h)
-# :OC_SheepfluffRug: Sheepfluff Rug (6h)
-# :OC_Earrings: Earrings (4h)
-# :OC_CawlCennin: Cawl Cennin (6h)
-# :OC_BoiledEgg: Boiled Egg (4h)
+# :OC_Isloaf: Isloaf (4h)
+# :OC_PopotoSalad: Popoto Salad (4h)
+# :OC_Isloaf: Isloaf (4h)
+# :OC_PopotoSalad: Popoto Salad (4h)
+# :OC_Isloaf: Isloaf (4h)
+# :OC_PopotoSalad: Popoto Salad (4h)
 # 	""", 
-# 	week_num=3, pred_cycle=4)
+# 	week_num=99, pred_cycle=1)
 
 
 if __name__ == "__main__":

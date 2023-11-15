@@ -26,7 +26,7 @@ class Plan:
 	def __lt__(self, other):
 		return other.value > self.value
 
-	def display(self, show_mats=False, show_copy_code=False, title=None, file_name=None):
+	def display(self, show_mats=False, show_copy_code=False, show_rest_days=True, add_tildes=False, title=None, file_name=None):
 		f = None
 		if file_name is None:
 			out_fn = print
@@ -36,8 +36,9 @@ class Plan:
 				print(string, end=end)
 				f.write(string + end)
 
+		if add_tildes: out_fn(f"```")
 		if title is not None: out_fn(title)
-		out_fn(f"Total value {self.value}, rest days {self.rest_days}")
+		if show_rest_days: out_fn(f"Total value {self.value}, rest days {self.rest_days}")
 		combo_index = 0
 		for cycle in range(1, 8):
 			if cycle not in self.rest_days:
@@ -48,8 +49,10 @@ class Plan:
 					out_fn(f"{num_workshops}x {combo_text}")
 				combo_index += 1
 
+		if add_tildes: out_fn(f"```\n")
+		if not show_rest_days: out_fn(f"Total value {self.value}, rest days {self.rest_days}")
 		if show_mats:
-			out_fn(f"Amounts produced (excluding supply overcap): {self.amounts_produced}")
+			out_fn(f"Amounts produced: {self.amounts_produced}")
 			materials_needed = dict()
 			for cycle_combos in self.best_combos:
 				for combo, num_workshops in cycle_combos:
@@ -217,8 +220,6 @@ def find_combo(items, items_by_category, starting_item, remaining_time, start_ef
 	else:
 		for category in starting_item.categories:
 			next_candidates.update(items_by_category[category])
-			# for item in items_by_category[category]:
-			# 	next_candidates.add(item)
 
 	for next_item in next_candidates:
 		if next_item == starting_item:
@@ -276,14 +277,6 @@ if __name__ == "__main__":
 	for combo in combos:
 		if combo.permutations[0][0].name == "Isleworks Fruit Punch" and combo.permutations[0][-1].name == "Isleberry Jam":
 			print(combo, len(combo.permutations))
-			# for permutation in combo.permutations:
-			# 	print(permutation)
-			# print()
-		# if len(combo.permutations[0]) == 4 and combo.permutations[0][1].name == "Isleworks Garnet Rapier" and combo.permutations[0][3].name == "Isleworks Garnet Rapier":
-		# 	print(combo, len(combo.permutations))
-		# 	for permutation in combo.permutations:
-		# 		print(permutation)
-		# 	print()
 
 	exit()
 	for combo in combos[:5] + combos[-5:]:
