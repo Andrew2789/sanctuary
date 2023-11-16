@@ -158,7 +158,7 @@ def display_season_data(season_data):
 			print(f"  {POPULARITY_BONUSES[popularity]:.1f}x pop: {[item_season_data.name.replace('Isleworks ', '') for item_season_data in by_code[code][popularity]]}")
 
 def fix_name(name, items_by_name):
-	name_title = name.title()
+	name_title = name.strip().title()
 	if name_title in items_by_name.keys():
 		return name_title
 	elif "Isleworks " + name_title in items_by_name.keys():

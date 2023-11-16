@@ -266,7 +266,7 @@ def add_favours_combo_value_chunk(param_chunk, cycle, cycle_index, favours, favo
 
 def add_favours_replacements_chunk(param_chunk, current_best_combos, favours, favour_incentive, remaining_favours, season_data, original_plan):
 	test_cycle = current_best_combos[:]
-	best_replacement = (-float("inf"), 0, 0, dict(), None, -1, 0, 0) #(value + incentive_sum, net_value, incentive_sum, net_favours, combo, combo_rank, cycle_index, replace_index)
+	best_replacement = (-float("inf"), 0, 0, dict(), dict(), None, -1, 0, 0) #(value + incentive_sum, net_value, incentive_sum, net_favours, combo, combo_rank, cycle_index, replace_index)
 	for cycle_index, replace_index, combo, combo_rank in param_chunk:
 		test_cycle[cycle_index] = current_best_combos[cycle_index][:]
 		removed_favours = get_amt_favours_produced(test_cycle[cycle_index][replace_index][0], favours, capped=False)
@@ -293,10 +293,11 @@ def add_favours_replacements_chunk(param_chunk, current_best_combos, favours, fa
 
 		value = net_value + incentive_sum
 		if value > best_replacement[0]:
-			best_replacement = (value, net_value, incentive_sum, net_favours, combo, combo_rank, cycle_index, replace_index)
+			best_replacement = (value, net_value, incentive_sum, net_favours, net_favours_capped, combo, combo_rank, cycle_index, replace_index)
 
 		#remove changes before next iter
 		test_cycle[cycle_index] = current_best_combos[cycle_index][:]
+
 	return best_replacement
 
 def add_favours(favours, favour_combos, season_data, pred_cycle, craft_cycles, plan, pool=None, verbose=False):
@@ -362,8 +363,9 @@ def add_favours(favours, favour_combos, season_data, pred_cycle, craft_cycles, p
 			arg_sets = [(all_params[i*REPLACEMENTS_CHUNK_SIZE:(i+1)*REPLACEMENTS_CHUNK_SIZE], current_best_combos, favours, favour_incentive, remaining_favours, season_data, plan) for i in range(ceil(len(all_params)/REPLACEMENTS_CHUNK_SIZE))]
 			best_replacement = sorted(pool.starmap(add_favours_replacements_chunk, arg_sets), key=lambda x: x[0])[-1]
 
-		total_value, net_value, incentive_sum, net_favours, combo, combo_rank, cycle_index, replace_index = best_replacement
-		if incentive_sum == 0 or sum(net_favours.values()) < 0: #no progress was made towards remaining favours - either replaced by same, or replaced with something that produced less favour items
+		total_value, net_value, incentive_sum, net_favours, net_favours_capped, combo, combo_rank, cycle_index, replace_index = best_replacement
+
+		if incentive_sum == 0 or sum(net_favours_capped.values()) < 0: #no progress was made towards remaining favours - either replaced by same, or replaced with something that produced less favour items
 			if verbose: print(f"oops, favour incentive {favour_incentive} -> {favour_incentive*2}")
 			favour_incentive *= 2
 		else:
@@ -760,7 +762,7 @@ def main():
 	# predict_next_season(4, blacklist, blacklist_ingredients)
 
 	# simulate_day_by_day(week_num=6, start=1, end=4)
-	run_tasks(week_num=99, pred_cycle=3)
+	run_tasks(week_num=7, pred_cycle=2)
 	# test_value_verbose(week_num=5, save_name="c4_OldStnd.json")
 
 # 	test_casuals(casuals_text = 
@@ -777,8 +779,22 @@ def main():
 # :OC_PopotoSalad: Popoto Salad (4h)
 # :OC_Isloaf: Isloaf (4h)
 # :OC_PopotoSalad: Popoto Salad (4h)
+
+# 	3
+# :OC_Sauerkraut: Sauerkraut (4h)
+# :OC_CornFlakes: Corn Flakes (4h)
+# :OC_Sauerkraut: Sauerkraut (4h)
+# :OC_CornFlakes: Corn Flakes (4h)
+# :OC_Sauerkraut: Sauerkraut (4h)
+# :OC_CornFlakes: Corn Flakes (4h)
+
+# :OC_Isloaf: Isloaf (4h)
+# :OC_BuffaloBeanSalad: Buffalo Bean Salad (4h)
+# :OC_HornCraft: Horn (6h)
+# :OC_Butter: Butter (4h)
+# :OC_HornCraft: Horn (6h)
 # 	""", 
-# 	week_num=99, pred_cycle=1)
+# 	week_num=7, pred_cycle=2)
 
 
 if __name__ == "__main__":
