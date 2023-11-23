@@ -8,7 +8,7 @@ from random import random, shuffle
 from multiprocessing import Pool
 from time import time
 
-NUM_PROCESSES = 12
+NUM_PROCESSES = 10
 
 def find_best_crafts_iter_combo_value_chunk(param_chunk, cycle, cycle_index, cycle_starting_grooves, cycle_starting_amounts_produced, season_data):
 	"""note: this only tests permutation 0 of each combo, with 3 workshops and nothing else on that cycle, and no concern for later cycles. this is acceptable for runtime i think seeing as its just the coarse pass"""
@@ -430,6 +430,7 @@ def find_plans_single_favours(combos, items_by_name, season_data, pred_cycle, lo
 	# 	best_plan.display()
 
 	best_plan = best_plans[-1]
+	#TODO - if predicting next cycle rest day, also try out 2nd best full combos for favours (in case the favours are good to produce on next cycle hwen u would be resting)
 
 	if len(favours.keys()) > 0:
 		favour_combos = {name: [] for name in favours.keys()}
@@ -503,6 +504,7 @@ def run_cycle_prediction(combos, items_by_name, week_num, pred_cycle, task_name,
 			threading=threading)
 
 	out_name = save_task(week_num, pred_cycle, task_name, best_plan)
+	plan_to_image(week_num, pred_cycle, task_name, plan=best_plan)
 
 	print()
 	best_plan.display(show_mats=True, show_copy_code=False, show_rest_days=pred_cycle==4, add_tildes=True, title=f"{task_name}, 6.5 week {week_num} day {pred_cycle}:", file_name=path.join(f"week_{week_num}", "display", f"c{pred_cycle}_{task_name}_display.txt"))
@@ -735,19 +737,12 @@ def test_casuals(casuals_text, week_num, pred_cycle):
 	#print(season_combos, rest_days)
 	plan = Plan(rest_days, season_combos, season_data)
 	plan.display(file_name=path.join(f"week_{week_num}", "display", f"c{pred_cycle}_Casuals.txt"))
-
-def test_value_verbose(week_num, save_name):
-	items = load_items()
-	season_data = read_season_data(week_num, verbose=True, check_last_season=False)
-	items_by_name = {item.name: item for item in items}
-
-	save_data = load_json(path.join(f"week_{week_num}", "saves", save_name))
-	season_combos = combos_from_text(save_data["full_combos"], items_by_name)
-	rest_days = save_data["rest_days"]
-	plan = Plan(rest_days, season_combos, season_data)
-	plan.display()
+	return plan
 
 def main():
+
+	#TODO - do some actual testing on the C1/C2/C3 multiplier values as to what gives the best rest day decisions
+
 	# blacklist = [
 	# 	#Rank 18
 	# 	"Isleworks Fruit Punch",
@@ -762,40 +757,49 @@ def main():
 	# predict_next_season(4, blacklist, blacklist_ingredients)
 
 	# simulate_day_by_day(week_num=6, start=1, end=4)
-	run_tasks(week_num=7, pred_cycle=2)
-	# test_value_verbose(week_num=5, save_name="c4_OldStnd.json")
+	# run_tasks(week_num=8, pred_cycle=3)
+	# load_saved_plan(week_num=5, save_name="c4_OldStnd.json")
 
-# 	test_casuals(casuals_text = 
-# 	"""
-# 	2
-# :OC_Natron: Natron (4h)
-# :OC_GardenScythe: Garden Scythe (6h)
-# :OC_SilverEarCuffs: Silver Ear Cuffs (8h)
-# :OC_GardenScythe: Garden Scythe (6h)
+	casuals_plan = test_casuals(casuals_text = 
+	"""
+	2
+:OC_PopotoSalad: Popoto Salad (4h)
+:OC_ParsnipSalad: Parsnip Salad (4h)
+:OC_BeetSoup: Beet Soup (6h)
+:OC_ParsnipSalad: Parsnip Salad (4h)
+:OC_BeetSoup: Beet Soup (6h)
 
-# :OC_Isloaf: Isloaf (4h)
-# :OC_PopotoSalad: Popoto Salad (4h)
-# :OC_Isloaf: Isloaf (4h)
-# :OC_PopotoSalad: Popoto Salad (4h)
-# :OC_Isloaf: Isloaf (4h)
-# :OC_PopotoSalad: Popoto Salad (4h)
+:OC_RunnerBeanSaute: Runner Bean Saute (4h)
+:OC_PopotoSalad: Popoto Salad (4h)
+:OC_OnionSoup: Onion Soup (6h)
+:OC_ParsnipSalad: Parsnip Salad (4h)
+:OC_BeetSoup: Beet Soup (6h)
 
-# 	3
-# :OC_Sauerkraut: Sauerkraut (4h)
-# :OC_CornFlakes: Corn Flakes (4h)
-# :OC_Sauerkraut: Sauerkraut (4h)
-# :OC_CornFlakes: Corn Flakes (4h)
-# :OC_Sauerkraut: Sauerkraut (4h)
-# :OC_CornFlakes: Corn Flakes (4h)
+	3
+:OC_SheepfluffRug: Sheepfluff Rug (6h)
+:OC_CawlCennin: Cawl Cennin (6h)
+:OC_SheepfluffRug: Sheepfluff Rug (6h)
+:OC_CawlCennin: Cawl Cennin (6h)
 
-# :OC_Isloaf: Isloaf (4h)
-# :OC_BuffaloBeanSalad: Buffalo Bean Salad (4h)
-# :OC_HornCraft: Horn (6h)
-# :OC_Butter: Butter (4h)
-# :OC_HornCraft: Horn (6h)
-# 	""", 
-# 	week_num=7, pred_cycle=2)
+:OC_Rope: Rope (4h)
+:OC_Bed: Bed (8h)
+:OC_SheepfluffRug: Sheepfluff Rug (6h)
+:OC_CawlCennin: Cawl Cennin (6h)
 
+	4
+:OC_BrassServingDish: Brass Serving Dish (4h)
+:OC_SilverEarCuffs: Silver Ear Cuffs (8h)
+:OC_BrassServingDish: Brass Serving Dish (4h)
+:OC_SilverEarCuffs: Silver Ear Cuffs (8h)
+
+:OC_Brush: Brush (4h)
+:OC_Crook: Crook (8h)
+:OC_Necklace: Necklace (4h)
+:OC_SilverEarCuffs: Silver Ear Cuffs (8h)
+	""", 
+	week_num=8, pred_cycle=2)
+	for pred_cycle in range(3, 4):
+		plan_to_image(8, pred_cycle, "Vivy")
 
 if __name__ == "__main__":
 	main()

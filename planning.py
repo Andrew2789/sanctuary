@@ -16,7 +16,7 @@ class Plan:
 			if cycle not in self.rest_days:
 				combo_value, best_permutations, groove = cycle_value(season_combos[combo_index], season_data, cycle, groove, self.amounts_produced)
 				self.earnings_per_cycle.append(combo_value)
-				self.best_combos.append(best_permutations)
+				self.best_combos.append(sorted(best_permutations, key=lambda x: x[1])) #sort by num workshops ascending
 				combo_index += 1
 		self.value = sum(self.earnings_per_cycle)
 
@@ -275,8 +275,10 @@ if __name__ == "__main__":
 	combos = sorted(find_all_combos(items, allow_load=True))
 	print(len(combos))
 	for combo in combos:
-		if combo.permutations[0][0].name == "Isleworks Fruit Punch" and combo.permutations[0][-1].name == "Isleberry Jam":
-			print(combo, len(combo.permutations))
+		# if combo.permutations[0][0].name == "Isleworks Fruit Punch" and combo.permutations[0][-1].name == "Isleberry Jam":
+		# 	print(combo, len(combo.permutations))
+		if sum([item.time for item in combo.permutations[0]]) < 24:
+			print(sum([item.time for item in combo.permutations[0]]), combo)
 
 	exit()
 	for combo in combos[:5] + combos[-5:]:
