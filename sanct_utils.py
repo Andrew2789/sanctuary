@@ -186,25 +186,30 @@ def shorten_name(name):
 		return name.replace("Isleworks ", "").replace("Island ", "")
 
 CATEGORY_COLOURS = {
-	"Preserved Food": (47, 75, 97, 255),
-	"Attire": (130, 31, 33, 255),
-	"Foodstuffs": (6, 94, 20, 255),
-	"Confections": (13, 0, 130, 255),
-	"Sundries": (2, 68, 156, 255),
-	"Furnishings": (2, 58, 105, 255),
-	"Arms": (43, 43, 43, 255),
-	"Concoctions": (115, 0, 82, 255),
-	"Ingredients": (3, 34, 128, 255),
-	"Accessories": (87, 97, 4, 255),
-	"Metalworks": (74, 74, 74, 255),
-	"Woodworks": (0, 42, 84, 255),
-	"Textiles": (73, 0, 115, 255),
-	"Creature Creations": (13, 115, 101, 255),
-	"Marine Merchandise": (168, 65, 17, 255),
-	"Unburied Treasures": (17, 128, 168, 255),
+	"Preserved Food": (0.8980392156862745, 0.7686274509803922, 0.5803921568627451),
+	"Attire": (143, 209, 247),
+	"Foodstuffs": (128, 219, 114),
+	"Confections": (250, 152, 198),
+	"Sundries": (255, 154, 82),
+	"Furnishings": (222, 154, 113),
+	"Arms": (0.8, 0.8, 0.8),
+	"Concoctions": (175, 137, 224),
+	"Ingredients": (255, 133, 133),
+	"Accessories": (101, 235, 186),
+	"Metalworks": (0.6, 0.6, 0.6),
+	"Woodworks": (176, 129, 114) ,
+	"Textiles": (224, 137, 220),
+	"Creature Creations": (217, 227, 113),
+	"Marine Merchandise": (143, 155, 247),
+	"Unburied Treasures": (235, 195, 84),
 }
-BACKGROUND_COL = (51, 47, 42, 255)
-BANNER_COL = (26, 24, 21, 255)
+CATEGORY_COLOURS = {name: (b*255, g*255, r*255, 255) if sum((r, g, b)) < 3.0 else (b, g, r, 255) for name, (r, g, b) in CATEGORY_COLOURS.items()}
+BACKGROUND_COL = [66, 67, 71, 255]
+BANNER_COL = [43, 43, 46, 255]
+TITLE_TEXT_COL = [230, 246, 250, 255]
+BACKGROUND_COL[0], BACKGROUND_COL[2] = BACKGROUND_COL[2], BACKGROUND_COL[0]
+BANNER_COL[0], BANNER_COL[2] = BANNER_COL[2], BANNER_COL[0]
+TITLE_TEXT_COL[0], TITLE_TEXT_COL[2] = TITLE_TEXT_COL[2], TITLE_TEXT_COL[0]
 TITLE_SIDEBAR_WIDTH = 72
 TEXT_SCALE = 0.6
 TITLE_SCALE = 0.8
@@ -214,7 +219,7 @@ HOUR_HEIGHT = 12
 COLUMN_WIDTH = 240
 CATEGORY_WIDTH = 192
 
-def draw_text(image, y_start, height, x_start, width, text, text_scale=1.0, x_off=0, y_off=0, align_left=True, align_top=True, align_centre=False, font=cv2.FONT_HERSHEY_SIMPLEX, thickness=1, colour=(255, 255, 255, 255)):
+def draw_text(image, y_start, height, x_start, width, text, text_scale=1.0, x_off=0, y_off=0, align_left=True, align_top=True, align_centre=False, font=cv2.FONT_HERSHEY_SIMPLEX, thickness=1, colour=(0, 0, 0, 255)):
 	text_size = cv2.getTextSize(text, font, text_scale, 1)[0]
 	text_x = (0 if align_left else -text_size[0]) + x_off
 	text_y = (text_size[1] if align_top else height) + y_off
@@ -262,17 +267,17 @@ def generate_cycle_banner(banner_title, banner_text, draw_hours=True, draw_heade
 		canvas[header_height:total_height, hour_column_width:hour_column_width+3*COLUMN_WIDTH-BORDER*2] = BACKGROUND_COL
 	#title and banner text
 	if large:
-		draw_text(canvas, header_height, total_height-header_height, 0, TITLE_SIDEBAR_WIDTH, banner_title, TITLE_SCALE, x_off=-title_border-2, y_off=-2, align_centre=True, thickness=2)
-		draw_text(canvas, header_height, total_height-header_height, hour_column_width, NUM_WORKSHOPS*COLUMN_WIDTH, banner_text, TITLE_SCALE, x_off=TEXT_OFFSET, y_off=TEXT_OFFSET*2+1)
+		draw_text(canvas, header_height, total_height-header_height, 0, TITLE_SIDEBAR_WIDTH, banner_title, TITLE_SCALE, x_off=-title_border-2, y_off=-2, align_centre=True, thickness=2, colour=TITLE_TEXT_COL)
+		draw_text(canvas, header_height, total_height-header_height, hour_column_width, NUM_WORKSHOPS*COLUMN_WIDTH, banner_text, TITLE_SCALE, x_off=TEXT_OFFSET, y_off=TEXT_OFFSET*2+1, colour=TITLE_TEXT_COL)
 	else:
-		draw_text(canvas, header_height, total_height-header_height, 0, TITLE_SIDEBAR_WIDTH, banner_title, TEXT_SCALE, x_off=-title_border-2, y_off=-2, align_centre=True, thickness=1)
+		draw_text(canvas, header_height, total_height-header_height, 0, TITLE_SIDEBAR_WIDTH, banner_title, TEXT_SCALE, x_off=-title_border-2, y_off=-2, align_centre=True, thickness=1, colour=TITLE_TEXT_COL)
 		if type(banner_text) == str:
 			banner_text = [banner_text]
 		for i, text in enumerate(banner_text):
 			if i == 0:
-				draw_text(canvas, header_height, total_height-header_height, hour_column_width+i*COLUMN_WIDTH, NUM_WORKSHOPS*COLUMN_WIDTH, text, TITLE_SCALE, x_off=TEXT_OFFSET, y_off=TEXT_OFFSET*2+2, thickness=2 if i==0 else 1)
+				draw_text(canvas, header_height, total_height-header_height, hour_column_width+i*COLUMN_WIDTH, NUM_WORKSHOPS*COLUMN_WIDTH, text, TITLE_SCALE, x_off=TEXT_OFFSET, y_off=TEXT_OFFSET*2+2, thickness=2 if i==0 else 1, colour=TITLE_TEXT_COL)
 			else:
-				draw_text(canvas, header_height, total_height-header_height, hour_column_width+i*COLUMN_WIDTH, NUM_WORKSHOPS*COLUMN_WIDTH, text, TEXT_SCALE, x_off=TEXT_OFFSET, y_off=-TEXT_OFFSET*3, align_top=False)
+				draw_text(canvas, header_height, total_height-header_height, hour_column_width+i*COLUMN_WIDTH, NUM_WORKSHOPS*COLUMN_WIDTH, text, TEXT_SCALE, x_off=TEXT_OFFSET, y_off=-TEXT_OFFSET*3, align_top=False, colour=TITLE_TEXT_COL)
 
 	if out_name is not None:
 		cv2.imwrite(out_name, canvas)
@@ -295,11 +300,11 @@ def cycle_to_image(cycle_name, cycle_combos, draw_hours=True, draw_headers=True,
 		# for sep in range(2, h, 2):
 		# 	canvas[cy+HOUR_HEIGHT*sep:cy+HOUR_HEIGHT*sep+BORDER, cx+BORDER*12:cx+COLUMN_WIDTH-BORDER*14] = (0, 0, 0, 0)
 
-		draw_text(canvas, cy, HOUR_HEIGHT*h, cx, COLUMN_WIDTH, text, TEXT_SCALE, x_off=TEXT_OFFSET, y_off=TEXT_OFFSET)
+		draw_text(canvas, cy, HOUR_HEIGHT*h, cx, COLUMN_WIDTH, text, TEXT_SCALE, x_off=TEXT_OFFSET, y_off=TEXT_OFFSET, colour=(0, 0, 0, 255))
 		# draw_text(canvas, cy, HOUR_HEIGHT*h, cx, COLUMN_WIDTH, right_text, 1.0, x_off=COLUMN_WIDTH-TEXT_OFFSET-BORDER*2, y_off=TEXT_OFFSET*2, align_left=False, colour=(0, 0, 0, 0), thickness=2)
 		faded_colour = right_colour if right_colour is not None else left_colour
-		faded_colour = list(faded_colour)[:3] + [120]
-		draw_text(canvas, cy, HOUR_HEIGHT*h, cx, COLUMN_WIDTH, right_text, 1.6, x_off=-TEXT_OFFSET*2, y_off=-TEXT_OFFSET+1, align_centre=True, colour=faded_colour, thickness=3)
+		faded_colour = list(faded_colour)[:3] + [200]
+		draw_text(canvas, cy, HOUR_HEIGHT*h-BORDER, cx, COLUMN_WIDTH, right_text, 1.2, x_off=-TEXT_OFFSET*2, y_off=-TEXT_OFFSET+BORDER, align_centre=True, colour=faded_colour, thickness=3)
 
 	def draw_workshop(workshop_index, workshop_combo, duplicate=False, values=None):
 		combo_category_freqs = dict()
@@ -330,8 +335,11 @@ def cycle_to_image(cycle_name, cycle_combos, draw_hours=True, draw_headers=True,
 
 		if duplicate:
 			cx = hour_column_width + COLUMN_WIDTH*workshop_index
-			canvas[header_height:header_height+12*HOUR_HEIGHT, cx:cx+COLUMN_WIDTH] = cv2.arrowedLine(canvas[header_height:header_height+12*HOUR_HEIGHT, cx:cx+COLUMN_WIDTH], 
-				(COLUMN_WIDTH-BORDER*20, 6*HOUR_HEIGHT-BORDER), (BORDER*20, 6*HOUR_HEIGHT-BORDER), (255, 255, 255, 255), thickness=3, tipLength=0.2)  
+			arrow_copy = cv2.arrowedLine(canvas[header_height:header_height+12*HOUR_HEIGHT, cx:cx+COLUMN_WIDTH].copy(), 
+				(COLUMN_WIDTH-BORDER*20, 6*HOUR_HEIGHT-BORDER), (BORDER*20, 6*HOUR_HEIGHT-BORDER), (0, 0, 0, 0), thickness=5, tipLength=0.2)  
+
+			arrow_opacity = 0.4
+			canvas[header_height:header_height+12*HOUR_HEIGHT, cx:cx+COLUMN_WIDTH] = arrow_copy*arrow_opacity + canvas[header_height:header_height+12*HOUR_HEIGHT, cx:cx+COLUMN_WIDTH]*(1-arrow_opacity)
 
 	#draw hour labels
 	if draw_hours:
@@ -348,8 +356,8 @@ def cycle_to_image(cycle_name, cycle_combos, draw_hours=True, draw_headers=True,
 	#draw cycle title + earnings
 	title_border = BORDER if draw_hours else BORDER*2
 	canvas[header_height:total_height-BORDER, 0:TITLE_SIDEBAR_WIDTH-title_border] = BACKGROUND_COL
-	draw_text(canvas, header_height, total_height-header_height, 0, TITLE_SIDEBAR_WIDTH, cycle_name, TITLE_SCALE, x_off=-title_border-2, y_off=-14, align_centre=True, thickness=2)
-	draw_text(canvas, header_height, total_height-header_height, 0, TITLE_SIDEBAR_WIDTH, f"{earnings}", TEXT_SCALE, x_off=-title_border-2, y_off=12, align_centre=True, thickness=1)
+	draw_text(canvas, header_height, total_height-header_height, 0, TITLE_SIDEBAR_WIDTH, cycle_name, TITLE_SCALE, x_off=-title_border-2, y_off=-14, align_centre=True, thickness=2, colour=TITLE_TEXT_COL)
+	draw_text(canvas, header_height, total_height-header_height, 0, TITLE_SIDEBAR_WIDTH, f"{earnings}", TEXT_SCALE, x_off=-title_border-2, y_off=12, align_centre=True, thickness=1, colour=TITLE_TEXT_COL)
 
 	#draw main columns
 	if draw_headers: draw_workshop_headers(canvas, hour_column_width, header_height)
@@ -433,11 +441,11 @@ def plan_to_image(week_num, pred_cycle, task_name, show_rest_days=True, draw_hou
 	all_used_categories = sorted(all_used_categories.items(), key=lambda x: -x[1])
 	category_canvas = np.zeros((HOUR_HEIGHT*2*(len(all_used_categories)+1), CATEGORY_WIDTH, 4), dtype=np.uint8) #BGRA format
 	category_canvas[0:2*HOUR_HEIGHT-BORDER, 0:CATEGORY_WIDTH] = BACKGROUND_COL
-	draw_text(category_canvas, 0, 2*HOUR_HEIGHT, 0, CATEGORY_WIDTH, "Categories:", TEXT_SCALE, x_off=TEXT_OFFSET, y_off=TEXT_OFFSET)
+	draw_text(category_canvas, 0, 2*HOUR_HEIGHT, 0, CATEGORY_WIDTH, "Categories:", TEXT_SCALE, x_off=TEXT_OFFSET, y_off=TEXT_OFFSET, colour=TITLE_TEXT_COL)
 	for i, (category_name, freq) in enumerate(all_used_categories, start=1):
 		cy = i*2*HOUR_HEIGHT
 		category_canvas[cy:cy+2*HOUR_HEIGHT, 0:CATEGORY_WIDTH] = CATEGORY_COLOURS[category_name]
-		draw_text(category_canvas, cy, 2*HOUR_HEIGHT, 0, CATEGORY_WIDTH, category_name, TEXT_SCALE, x_off=TEXT_OFFSET, y_off=TEXT_OFFSET)
+		draw_text(category_canvas, cy, 2*HOUR_HEIGHT, 0, CATEGORY_WIDTH, category_name, TEXT_SCALE, x_off=TEXT_OFFSET, y_off=TEXT_OFFSET, colour=(0, 0, 0, 255))
 
 	if vert_title:
 		combined_canvas = np.zeros((category_canvas.shape[0]+title.shape[0], CATEGORY_WIDTH, 4), dtype=np.uint8) #BGRA format

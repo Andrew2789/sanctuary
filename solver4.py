@@ -104,7 +104,7 @@ def find_best_crafts_iter(items_by_name, combos, season_data, pred_cycle, locked
 			cycle_starting_amounts_produced[cycle_index + 1] = amounts_produced_instance
 
 		if remaining_default_cycles == 0: #reset ranked comboes (apart from c2/ind 0 since that'll never change), swap to fast mode
-			cycle_considered_combos = {len(locked_in_days): cycle_considered_combos[len(locked_in_days)]} #TODO - pred_cycle-1? whatever the first non-locked in one is len(locked_in_days) also maybe
+			cycle_considered_combos = {len(locked_in_days): cycle_considered_combos[len(locked_in_days)]} 
 			num_replacements_to_check = NUM_REPL_LOW
 
 		combo_chunks = []
@@ -742,6 +742,7 @@ def test_casuals(casuals_text, week_num, pred_cycle):
 def main():
 
 	#TODO - do some actual testing on the C1/C2/C3 multiplier values as to what gives the best rest day decisions
+	#maybe calculate some metric based on how many different good items have high popularity that cycle to calculate the multiplier
 
 	# blacklist = [
 	# 	#Rank 18
@@ -757,49 +758,71 @@ def main():
 	# predict_next_season(4, blacklist, blacklist_ingredients)
 
 	# simulate_day_by_day(week_num=6, start=1, end=4)
-	# run_tasks(week_num=8, pred_cycle=3)
+	run_tasks(week_num=8, pred_cycle=4)
 	# load_saved_plan(week_num=5, save_name="c4_OldStnd.json")
 
-	casuals_plan = test_casuals(casuals_text = 
-	"""
-	2
-:OC_PopotoSalad: Popoto Salad (4h)
-:OC_ParsnipSalad: Parsnip Salad (4h)
-:OC_BeetSoup: Beet Soup (6h)
-:OC_ParsnipSalad: Parsnip Salad (4h)
-:OC_BeetSoup: Beet Soup (6h)
+# 	casuals_plan = test_casuals(casuals_text = 
+# 	"""
+# 	2
+# :OC_PopotoSalad: Popoto Salad (4h)
+# :OC_ParsnipSalad: Parsnip Salad (4h)
+# :OC_BeetSoup: Beet Soup (6h)
+# :OC_ParsnipSalad: Parsnip Salad (4h)
+# :OC_BeetSoup: Beet Soup (6h)
 
-:OC_RunnerBeanSaute: Runner Bean Saute (4h)
-:OC_PopotoSalad: Popoto Salad (4h)
-:OC_OnionSoup: Onion Soup (6h)
-:OC_ParsnipSalad: Parsnip Salad (4h)
-:OC_BeetSoup: Beet Soup (6h)
+# :OC_RunnerBeanSaute: Runner Bean Saute (4h)
+# :OC_PopotoSalad: Popoto Salad (4h)
+# :OC_OnionSoup: Onion Soup (6h)
+# :OC_ParsnipSalad: Parsnip Salad (4h)
+# :OC_BeetSoup: Beet Soup (6h)
 
-	3
-:OC_SheepfluffRug: Sheepfluff Rug (6h)
-:OC_CawlCennin: Cawl Cennin (6h)
-:OC_SheepfluffRug: Sheepfluff Rug (6h)
-:OC_CawlCennin: Cawl Cennin (6h)
+# 	3
+# :OC_SheepfluffRug: Sheepfluff Rug (6h)
+# :OC_CawlCennin: Cawl Cennin (6h)
+# :OC_SheepfluffRug: Sheepfluff Rug (6h)
+# :OC_CawlCennin: Cawl Cennin (6h)
 
-:OC_Rope: Rope (4h)
-:OC_Bed: Bed (8h)
-:OC_SheepfluffRug: Sheepfluff Rug (6h)
-:OC_CawlCennin: Cawl Cennin (6h)
+# :OC_Rope: Rope (4h)
+# :OC_Bed: Bed (8h)
+# :OC_SheepfluffRug: Sheepfluff Rug (6h)
+# :OC_CawlCennin: Cawl Cennin (6h)
 
-	4
-:OC_BrassServingDish: Brass Serving Dish (4h)
-:OC_SilverEarCuffs: Silver Ear Cuffs (8h)
-:OC_BrassServingDish: Brass Serving Dish (4h)
-:OC_SilverEarCuffs: Silver Ear Cuffs (8h)
+# 	4
+# :OC_BrassServingDish: Brass Serving Dish (4h)
+# :OC_SilverEarCuffs: Silver Ear Cuffs (8h)
+# :OC_BrassServingDish: Brass Serving Dish (4h)
+# :OC_SilverEarCuffs: Silver Ear Cuffs (8h)
 
-:OC_Brush: Brush (4h)
-:OC_Crook: Crook (8h)
-:OC_Necklace: Necklace (4h)
-:OC_SilverEarCuffs: Silver Ear Cuffs (8h)
-	""", 
-	week_num=8, pred_cycle=2)
-	for pred_cycle in range(3, 4):
-		plan_to_image(8, pred_cycle, "Vivy")
+# :OC_Brush: Brush (4h)
+# :OC_Crook: Crook (8h)
+# :OC_Necklace: Necklace (4h)
+# :OC_SilverEarCuffs: Silver Ear Cuffs (8h)
+
+# 6
+# :OC_BoiledEgg: Boiled Egg (4h)
+# :OC_ImamBayildi: Imam Bayildi (6h)
+# :OC_SweetPopotoPie: Sweet Popoto Pie (8h)
+# :OC_ImamBayildi: Imam Bayildi (6h)
+
+# :OC_BoiledEgg: Boiled Egg (4h)
+# :OC_Bouillabaisse: Bouillabaisse (8h)
+# :OC_BoiledEgg: Boiled Egg (4h)
+# :OC_SweetPopotoPie: Sweet Popoto Pie (8h)
+
+# 7
+# :OC_CoconutJuice: Coconut Juice (4h)
+# :OC_GrowthFormula: Growth Formula (8h)
+# :OC_Isloaf: Isloaf (4h)
+# :OC_GrowthFormula: Growth Formula (8h)
+
+# :OC_BakedPumpkin: Baked Pumpkin (4h)
+# :OC_Bouillabaisse: Bouillabaisse (8h)
+# :OC_Isloaf: Isloaf (4h)
+# :OC_GrowthFormula: Growth Formula (8h)
+# 	""", 
+# 	week_num=8, pred_cycle=4)
+	# for pred_cycle in range(3, 4):
+	# 	plan_to_image(8, pred_cycle, "Seal")
 
 if __name__ == "__main__":
 	main()
