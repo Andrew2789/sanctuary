@@ -82,7 +82,7 @@ def find_best_crafts_iter(items_by_name, combos, season_data, pred_cycle, locked
 	current_best_combos = locked_in_days[:]
 	stove = items_by_name["Isleworks Stove"]
 	stove_combo = Combo([[stove, stove, stove, stove]])
-	for i in range(len(locked_in_days), 5):
+	for i in range(len(locked_in_days), 7 - max(2, len(rest_days))):
 		current_best_combos.append([(stove_combo, 4)]) #add a low value placeholder combo
 	current_plan = Plan(rest_days, current_best_combos, season_data)
 
@@ -90,7 +90,7 @@ def find_best_crafts_iter(items_by_name, combos, season_data, pred_cycle, locked
 	last_changed_cycle = -1
 	cycle_considered_combos = dict()
 	cycle_valued_combos = dict()
-	remaining_default_cycles = 5 - len(locked_in_days)
+	remaining_default_cycles = 7 - max(2, len(rest_days)) - len(locked_in_days)
 	total_value = 1
 	while total_value > 0:
 		cycle_starting_grooves = {0: 0}
@@ -324,8 +324,9 @@ def add_favours(favours, favour_combos, season_data, pred_cycle, craft_cycles, p
 
 		#initialize remaining favours with current best combos
 		remaining_favours = favours.copy()
+		final_amounts_produced = cycle_starting_amounts_produced[max(cycle_starting_amounts_produced.keys())]
 		for name in remaining_favours.keys():
-			remaining_favours[name] -= cycle_starting_amounts_produced[5].get(name, 0)
+			remaining_favours[name] -= final_amounts_produced.get(name, 0)
 		if all(remaining_favours[name] <= 0 for name in remaining_favours.keys()):
 			print(f"No need to add favours, already there ({remaining_favours})")
 			break #solved already on iter 0
@@ -572,7 +573,7 @@ def run_tasks(week_num, pred_cycle):
 			if "Standard" in saves_dict.keys() and pred_cycle in saves_dict["Standard"]:
 				standard_data = load_json(path.join(f"week_{week_num}", "saves", saves_dict["Standard"][pred_cycle]))
 				print(f"{task_name}: current cycle Standard save found ({saves_dict['Standard'][pred_cycle]}), loading... ")
-				if not any(constraint in task_dict.keys() for constraint in ["blacklist", "combos"]):
+				if not any(constraint in task_dict.keys() for constraint in ["blacklist", "combos", "rest_days"]):
 					load_standard = "y"#None
 					while load_standard not in ("y", "n"):
 						load_standard = input(f"use standard combos for new task {task_name}? only one rest day combo will be assessed (y/n) ").lower()
@@ -699,6 +700,8 @@ def test_casuals(casuals_text, week_num, pred_cycle):
 	current_combo = []
 	for line in casuals_text:
 		if len(line) == 1: #cycle
+			if cycle is not None and len(cycles[cycle]) == 1:
+				cycles[cycle] = [(cycles[cycle][0][0], 4)]
 			cycle = int(line)
 			cycles[cycle] = []
 		elif len(line) == 0: #next workshop
@@ -758,69 +761,68 @@ def main():
 	# predict_next_season(4, blacklist, blacklist_ingredients)
 
 	# simulate_day_by_day(week_num=6, start=1, end=4)
-	run_tasks(week_num=8, pred_cycle=4)
+	run_tasks(week_num=9, pred_cycle=4)
 	# load_saved_plan(week_num=5, save_name="c4_OldStnd.json")
 
 # 	casuals_plan = test_casuals(casuals_text = 
 # 	"""
 # 	2
-# :OC_PopotoSalad: Popoto Salad (4h)
-# :OC_ParsnipSalad: Parsnip Salad (4h)
-# :OC_BeetSoup: Beet Soup (6h)
-# :OC_ParsnipSalad: Parsnip Salad (4h)
-# :OC_BeetSoup: Beet Soup (6h)
+# :OC_BoiledEgg: Boiled Egg (4h)
+# :OC_Isloaf: Isloaf (4h)
+# :OC_PowderedPaprika: Powdered Paprika (4h)
+# :OC_Isloaf: Isloaf (4h)
+# :OC_PowderedPaprika: Powdered Paprika (4h)
+# :OC_Isloaf: Isloaf (4h)
 
-# :OC_RunnerBeanSaute: Runner Bean Saute (4h)
-# :OC_PopotoSalad: Popoto Salad (4h)
+# :OC_BoiledEgg: Boiled Egg (4h)
+# :OC_Earrings: Earrings (4h)
+# :OC_BoiledEgg: Boiled Egg (4h)
+# :OC_Earrings: Earrings (4h)
+# :OC_BoiledEgg: Boiled Egg (4h)
+# :OC_Isloaf: Isloaf (4h)
+
+# 	4
+# :OC_Natron: Natron (4h)
+# :OC_SharkOil: Shark Oil (8h)
+# :OC_Natron: Natron (4h)
+# :OC_SharkOil: Shark Oil (8h)
+
+# :OC_BakedPumpkin: Baked Pumpkin (4h)
 # :OC_OnionSoup: Onion Soup (6h)
-# :OC_ParsnipSalad: Parsnip Salad (4h)
-# :OC_BeetSoup: Beet Soup (6h)
+# :OC_BakedPumpkin: Baked Pumpkin (4h)
+# :OC_OnionSoup: Onion Soup (6h)
+# :OC_BakedPumpkin: Baked Pumpkin (4h)
 
-# 	3
-# :OC_SheepfluffRug: Sheepfluff Rug (6h)
-# :OC_CawlCennin: Cawl Cennin (6h)
-# :OC_SheepfluffRug: Sheepfluff Rug (6h)
-# :OC_CawlCennin: Cawl Cennin (6h)
+# 	5
+# :OC_PopotoSalad: Popoto Salad (4h)
+# :OC_Bouillabaisse: Bouillabaisse (8h)
+# :OC_IslefishPie: Islefish Pie (6h)
+# :OC_PumpkinPudding: Pumpkin Pudding (6h)
+
+# 6
+# :OC_Brush: Brush (4h)
+# :OC_GardenScythe: Garden Scythe (6h)
+# :OC_SilverEarCuffs: Silver Ear Cuffs (8h)
+# :OC_GardenScythe: Garden Scythe (6h)
 
 # :OC_Rope: Rope (4h)
 # :OC_Bed: Bed (8h)
-# :OC_SheepfluffRug: Sheepfluff Rug (6h)
-# :OC_CawlCennin: Cawl Cennin (6h)
-
-# 	4
-# :OC_BrassServingDish: Brass Serving Dish (4h)
-# :OC_SilverEarCuffs: Silver Ear Cuffs (8h)
-# :OC_BrassServingDish: Brass Serving Dish (4h)
-# :OC_SilverEarCuffs: Silver Ear Cuffs (8h)
-
-# :OC_Brush: Brush (4h)
-# :OC_Crook: Crook (8h)
-# :OC_Necklace: Necklace (4h)
-# :OC_SilverEarCuffs: Silver Ear Cuffs (8h)
-
-# 6
-# :OC_BoiledEgg: Boiled Egg (4h)
-# :OC_ImamBayildi: Imam Bayildi (6h)
-# :OC_SweetPopotoPie: Sweet Popoto Pie (8h)
-# :OC_ImamBayildi: Imam Bayildi (6h)
-
-# :OC_BoiledEgg: Boiled Egg (4h)
-# :OC_Bouillabaisse: Bouillabaisse (8h)
-# :OC_BoiledEgg: Boiled Egg (4h)
-# :OC_SweetPopotoPie: Sweet Popoto Pie (8h)
+# :OC_Stove: Stove (6h)
+# :OC_GardenScythe: Garden Scythe (6h)
 
 # 7
-# :OC_CoconutJuice: Coconut Juice (4h)
-# :OC_GrowthFormula: Growth Formula (8h)
-# :OC_Isloaf: Isloaf (4h)
-# :OC_GrowthFormula: Growth Formula (8h)
+# :OC_Brush: Brush (4h)
+# :OC_Crook: Crook (8h)
+# :OC_Brush: Brush (4h)
+# :OC_Crook: Crook (8h)
 
-# :OC_BakedPumpkin: Baked Pumpkin (4h)
-# :OC_Bouillabaisse: Bouillabaisse (8h)
-# :OC_Isloaf: Isloaf (4h)
-# :OC_GrowthFormula: Growth Formula (8h)
+# :OC_BuffaloBeanSalad: Buffalo Bean Salad (4h)
+# :OC_Hora: Hora (6h)
+# :OC_BuffaloBeanSalad: Buffalo Bean Salad (4h)
+# :OC_Hora: Hora (6h)
+# :OC_BuffaloBeanSalad: Buffalo Bean Salad (4h)
 # 	""", 
-# 	week_num=8, pred_cycle=4)
+# 	week_num=9, pred_cycle=4)
 	# for pred_cycle in range(3, 4):
 	# 	plan_to_image(8, pred_cycle, "Seal")
 
