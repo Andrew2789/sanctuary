@@ -61,7 +61,7 @@ def find_best_crafts_combinatorial_replacements_chunk(param_chunk, current_value
 
 	return best_replacement
 
-def find_best_crafts_iter(items_by_name, combos, season_data, pred_cycle, locked_in_days, rest_days, craft_cycles, pool=None, verbose=False):
+def find_best_crafts_iter(items_by_name, combos, season_data, pred_cycle, locked_in_days, rest_days, craft_cycles, pool=None, standard_plan=None, verbose=False):
 	NUM_COMBOS_TO_CHECK = 100000
 
 	NUM_REPLACEMENTS_TO_CHECK_PRED_CYCLE = {
@@ -72,7 +72,6 @@ def find_best_crafts_iter(items_by_name, combos, season_data, pred_cycle, locked
 	}
 	UPGRADE_REPL_PROP = 0.5
 	NUM_REPL_HIGH, NUM_REPL_LOW, NUM_COMB_REPL = NUM_REPLACEMENTS_TO_CHECK_PRED_CYCLE[pred_cycle]
-	num_replacements_to_check = NUM_REPL_HIGH
 
 	COMBO_CHUNK_SIZE = 10000
 	REPLACEMENTS_CHUNK_SIZE = 2000
@@ -80,17 +79,25 @@ def find_best_crafts_iter(items_by_name, combos, season_data, pred_cycle, locked
 	do_combinatorial = False
 
 	current_best_combos = locked_in_days[:]
-	stove = items_by_name["Isleworks Stove"]
-	stove_combo = Combo([[stove, stove, stove, stove]])
-	for i in range(len(locked_in_days), 7 - max(2, len(rest_days))):
-		current_best_combos.append([(stove_combo, 4)]) #add a low value placeholder combo
+
+	if standard_plan is None:
+		stove = items_by_name["Isleworks Stove"]
+		stove_combo = Combo([[stove, stove, stove, stove]])
+		for i in range(len(locked_in_days), 7 - max(2, len(rest_days))):
+			current_best_combos.append([(stove_combo, 4)]) #add a low value placeholder combo
+		remaining_default_cycles = 7 - max(2, len(rest_days)) - len(locked_in_days)
+		num_replacements_to_check = NUM_REPL_HIGH
+	else:
+		current_best_combos += standard_plan.best_combos[len(current_best_combos):]
+		assert len(current_best_combos) == 5
+		remaining_default_cycles = -1
+		num_replacements_to_check = NUM_REPL_LOW
 	current_plan = Plan(rest_days, current_best_combos, season_data)
 
 	max_used_rank = 0
 	last_changed_cycle = -1
 	cycle_considered_combos = dict()
 	cycle_valued_combos = dict()
-	remaining_default_cycles = 7 - max(2, len(rest_days)) - len(locked_in_days)
 	total_value = 1
 	while total_value > 0:
 		cycle_starting_grooves = {0: 0}
@@ -395,9 +402,7 @@ def add_favours(favours, favour_combos, season_data, pred_cycle, craft_cycles, p
 
 	return final_plan
 
-def find_plans_single_favours(combos, items_by_name, season_data, pred_cycle, locked_in_days=[], locked_in_rest_days=[1], favours=dict(), only_favours=False, threading=True, verbose=True):
-	if verbose: display_season_data(season_data)
-
+def find_plans_single_favours(combos, items_by_name, season_data, pred_cycle, locked_in_days=[], locked_in_rest_days=[1], favours=dict(), standard_plans=[], only_favours=False, threading=True, verbose=True):
 	rest_day_combos = get_valid_rest_day_combos(locked_in_days, locked_in_rest_days)
 	print(f"locked in days: {locked_in_days}, locked in rest days: {locked_in_rest_days}, possible rest days: {rest_day_combos}")
 
@@ -408,7 +413,10 @@ def find_plans_single_favours(combos, items_by_name, season_data, pred_cycle, lo
 	max_used_rank = -1
 	best_plans = []
 	if only_favours:
-		best_plans.append(Plan(locked_in_rest_days, locked_in_days, season_data))
+		if len(standard_plans) > 0:
+			best_plans = standard_plans
+		else:
+			best_plans.append(Plan(locked_in_rest_days, locked_in_days, season_data))
 	else:
 		for rest_days in rest_day_combos:
 			if verbose: print(f"solving rest days {rest_days}")
@@ -416,8 +424,14 @@ def find_plans_single_favours(combos, items_by_name, season_data, pred_cycle, lo
 			for rest_day in rest_days:
 				craft_cycles.remove(rest_day)
 
+			standard_plan = None
+			for plan in standard_plans:
+				if plan.rest_days == rest_days:
+					standard_plan = plan
+					print(f"Using standard plan with rest days {rest_days} and value {plan.value} as starting point... ")
+
 			rest_day_start = time()
-			max_used_rank_iter, best_plan = find_best_crafts_iter(items_by_name, combos, season_data, pred_cycle, locked_in_days, rest_days, craft_cycles, pool, verbose=verbose)
+			max_used_rank_iter, best_plan = find_best_crafts_iter(items_by_name, combos, season_data, pred_cycle, locked_in_days, rest_days, craft_cycles, pool, standard_plan=standard_plan, verbose=verbose)
 			max_used_rank = max(max_used_rank, max_used_rank_iter)
 			best_plans.append(best_plan)
 			time_total = time() - rest_day_start
@@ -431,7 +445,10 @@ def find_plans_single_favours(combos, items_by_name, season_data, pred_cycle, lo
 	# 	best_plan.display()
 
 	best_plan = best_plans[-1]
-	#TODO - if predicting next cycle rest day, also try out 2nd best full combos for favours (in case the favours are good to produce on next cycle hwen u would be resting)
+	second_best_plan = None
+	if len(best_plans) > 1 and pred_cycle in best_plan.rest_days:
+		#if predicting next cycle rest day, also try out 2nd best full combos for favours (in case the favours are good to produce on next cycle hwen u would be resting)
+		second_best_plan = best_plans[-2]
 
 	if len(favours.keys()) > 0:
 		favour_combos = {name: [] for name in favours.keys()}
@@ -447,9 +464,14 @@ def find_plans_single_favours(combos, items_by_name, season_data, pred_cycle, lo
 		for rest_day in best_plan.rest_days:
 			craft_cycles.remove(rest_day)
 		best_plan = add_favours(favours, favour_combos, season_data, pred_cycle, craft_cycles, best_plan, pool, verbose=verbose)
+		if second_best_plan is not None:
+			second_best_plan = add_favours(favours, favour_combos, season_data, pred_cycle, craft_cycles, second_best_plan, pool, verbose=verbose)
+			best_plan = best_plan if best_plan.value > second_best_plan.value else second_best_plan
+		best_plans = [best_plan]
+
 	if pool is not None: pool.close()
 
-	return best_plan
+	return best_plans
 
 def predict_next_season(current_week_num, blacklist, blacklist_ingredients):
 	items = load_items(blacklist=blacklist, blacklist_ingredients=blacklist_ingredients)
@@ -463,10 +485,15 @@ def predict_next_season(current_week_num, blacklist, blacklist_ingredients):
 	for item_name in next_season_data.keys():
 		next_season_data[item_name].guess_supply()
 
-	best_plan = find_plans_single_favours(combos, items_by_name, next_season_data, pred_cycle=1)
+	best_plan = find_plans_single_favours(combos, items_by_name, next_season_data, pred_cycle=1)[-1]
 	best_plan.display(show_mats=True, file_name=path.join(f"week_{current_week_num}", "display", f"next_season_display.txt"))
 
-def save_task(week_num, pred_cycle, task_name, best_plan):
+def save_task(week_num, pred_cycle, task_name, best_plans):
+	if type(best_plans) is list:
+		best_plan = best_plans[-1]
+	else:
+		best_plan = best_plans
+
 	num_locked_in_combos = 0
 	num_locked_in_rest_days = 0
 	for i in range(1, pred_cycle + 1 + 1): #look ahead by 1 cycle
@@ -482,29 +509,37 @@ def save_task(week_num, pred_cycle, task_name, best_plan):
 
 	task_data["full_rest_days"] = best_plan.rest_days
 	task_data["full_combos"] = combos_to_text_list(best_plan.best_combos)
+
+	if task_name == "Standard" and type(best_plans) is list:
+		standard_plans = []
+		for plan in best_plans:
+			standard_plans.append({"rest_days": plan.rest_days, "combos": combos_to_text_list(plan.best_combos)})
+		task_data["standard_plans"] = standard_plans
+
 	out_name = f"c{pred_cycle}_{task_name}.json"
 	write_json(path.join(f"week_{week_num}", "saves", out_name), task_data)
 
 	return out_name
 
-def run_cycle_prediction(combos, items_by_name, week_num, pred_cycle, task_name, locked_in_days=[], locked_in_rest_days=[1], favours=dict(), blacklist=[], only_favours=False, threading=True):
+def run_cycle_prediction(combos, items_by_name, season_data, week_num, pred_cycle, task_name, locked_in_days=[], locked_in_rest_days=[1], favours=dict(), blacklist=[], only_favours=False, standard_plans=[], threading=True):
 	if len(blacklist) > 0:
 		items = load_items(blacklist=blacklist)
 		combos = find_all_combos(items, allow_load=False) #use default combos if no blacklist
-	season_data = read_season_data(week_num, verbose=True, check_last_season=pred_cycle == 1) 
 		
 	if only_favours and pred_cycle + 1 in locked_in_rest_days:
 		#copying standard preds and adding favours, but the pred cycle was decided to be a rest day
-		best_plan = Plan(locked_in_rest_days, locked_in_days, season_data)
+		best_plans = [Plan(locked_in_rest_days, locked_in_days, season_data)]
 	else:
-		best_plan = find_plans_single_favours(combos, items_by_name, season_data, pred_cycle,
+		best_plans = find_plans_single_favours(combos, items_by_name, season_data, pred_cycle,
 			locked_in_days=locked_in_days, 
 			locked_in_rest_days=locked_in_rest_days,
 			favours=favours,
+			standard_plans=standard_plans,
 			only_favours=only_favours,
 			threading=threading)
 
-	out_name = save_task(week_num, pred_cycle, task_name, best_plan)
+	best_plan = best_plans[-1]
+	out_name = save_task(week_num, pred_cycle, task_name, best_plans)
 	plan_to_image(week_num, pred_cycle, task_name, plan=best_plan)
 
 	print()
@@ -528,6 +563,8 @@ def run_tasks(week_num, pred_cycle):
 	else: #try to read in the cycle data as screenshots
 		extract_cycle_from_snips(week_num, pred_cycle, debug=True, export_season_data=pred_cycle == 1)
 
+	season_data = read_season_data(week_num, verbose=True, check_last_season=pred_cycle == 1)
+	display_season_data(season_data)
 	prev_cycle = pred_cycle - 1
 	tasks = load_json(path.join(f"week_{week_num}", "tasks.json"))
 	saves = listdir(path.join(f"week_{week_num}", "saves"))
@@ -560,30 +597,27 @@ def run_tasks(week_num, pred_cycle):
 				print("skipping to next task... ")
 				continue
 
+		standard_plans = []
 		prev_data = None
 		if task_name in saves_dict.keys() and prev_cycle in saves_dict[task_name]:
 			prev_data = load_json(path.join(f"week_{week_num}", "saves", saves_dict[task_name][prev_cycle]))
 			print(f"{task_name}: prev cycle save found ({saves_dict[task_name][prev_cycle]}), loading... ")
 
 		using_standard_combos = False
+
+		if "Standard" in saves_dict.keys() and pred_cycle in saves_dict["Standard"]:
+			standard_data = load_json(path.join(f"week_{week_num}", "saves", saves_dict["Standard"][pred_cycle]))
+			print(f"{task_name}: current cycle Standard save found ({saves_dict['Standard'][pred_cycle]}), loading... ")
+			if "standard_plans" in standard_data.keys() and task_name != "Standard":
+				standard_plans = standard_data["standard_plans"]
+				standard_plans = [Plan(plan["rest_days"], combos_from_text(plan["combos"], items_by_name), season_data) for plan in standard_plans]
+				print(standard_plans)
+
 		if prev_data is None:
 			prev_data = task_dict
 			print(f"{task_name}: no prev cycle save")
-
-			if "Standard" in saves_dict.keys() and pred_cycle in saves_dict["Standard"]:
-				standard_data = load_json(path.join(f"week_{week_num}", "saves", saves_dict["Standard"][pred_cycle]))
-				print(f"{task_name}: current cycle Standard save found ({saves_dict['Standard'][pred_cycle]}), loading... ")
-				if not any(constraint in task_dict.keys() for constraint in ["blacklist", "combos", "rest_days"]):
-					load_standard = "y"#None
-					while load_standard not in ("y", "n"):
-						load_standard = input(f"use standard combos for new task {task_name}? only one rest day combo will be assessed (y/n) ").lower()
-					if load_standard == "n":
-						print("not loading standard... ")
-					else:
-						prev_data["combos"] = standard_data["full_combos"]
-						prev_data["rest_days"] = standard_data["full_rest_days"]
-						using_standard_combos = True
-						print(f"loaded standard, only rest days {prev_data['rest_days']} will be assessed")
+			if len(standard_plans) > 0 and not any(constraint in task_dict.keys() for constraint in ["blacklist", "combos", "rest_days"]):
+				using_standard_combos = True
 
 		locked_in_days = combos_from_text(prev_data["combos"], items_by_name) if "combos" in prev_data.keys() else []
 		locked_in_rest_days = prev_data["rest_days"] if "rest_days" in prev_data.keys() else [1]
@@ -592,7 +626,7 @@ def run_tasks(week_num, pred_cycle):
 		favours = {fix_name(name, items_by_name): num for name, num in favours.items()}
 		print(f"{task_name}: running task with {len(locked_in_days)} locked in cycles, {locked_in_rest_days} rest days, {len(blacklist)} blacklisted items, and {len(favours)} favours")
 
-		out_name = run_cycle_prediction(combos, items_by_name, week_num=week_num, pred_cycle=pred_cycle, task_name=task_name, locked_in_days=locked_in_days, locked_in_rest_days=locked_in_rest_days, blacklist=blacklist, favours=favours, only_favours=using_standard_combos)
+		out_name = run_cycle_prediction(combos, items_by_name, season_data, week_num=week_num, pred_cycle=pred_cycle, task_name=task_name, locked_in_days=locked_in_days, locked_in_rest_days=locked_in_rest_days, blacklist=blacklist, favours=favours, only_favours=using_standard_combos, standard_plans=standard_plans)
 		if task_name == "Standard": #just made a standard pred, index it
 			if "Standard" not in saves_dict.keys():
 				saves_dict["Standard"] = dict()
@@ -633,7 +667,7 @@ def simulate_day_by_day(week_num, start=1, end=4, locked_in_days=[], locked_in_r
 		best_plan = find_plans_single_favours(combos, items_by_name, season_data, cycle,
 			locked_in_days=locked_in_days, 
 			locked_in_rest_days=locked_in_rest_days,
-			favours=favours) 
+			favours=favours)[-1]
 		best_plans.append(best_plan)
 		#lock in prediction for the next cycle
 		if cycle + 1 in best_plan.rest_days:
@@ -743,6 +777,7 @@ def test_casuals(casuals_text, week_num, pred_cycle):
 	return plan
 
 def main():
+	#TODO - detect if there's commented out save on current cycle (eg. c1_Lyra.json) and trigger the replace/skip check
 
 	#TODO - do some actual testing on the C1/C2/C3 multiplier values as to what gives the best rest day decisions
 	#maybe calculate some metric based on how many different good items have high popularity that cycle to calculate the multiplier
@@ -761,68 +796,37 @@ def main():
 	# predict_next_season(4, blacklist, blacklist_ingredients)
 
 	# simulate_day_by_day(week_num=6, start=1, end=4)
-	run_tasks(week_num=9, pred_cycle=4)
+	run_tasks(week_num=10, pred_cycle=4)
 	# load_saved_plan(week_num=5, save_name="c4_OldStnd.json")
 
 # 	casuals_plan = test_casuals(casuals_text = 
 # 	"""
-# 	2
-# :OC_BoiledEgg: Boiled Egg (4h)
-# :OC_Isloaf: Isloaf (4h)
-# :OC_PowderedPaprika: Powdered Paprika (4h)
-# :OC_Isloaf: Isloaf (4h)
-# :OC_PowderedPaprika: Powdered Paprika (4h)
-# :OC_Isloaf: Isloaf (4h)
+# 	3
+# :OC_SquidInk: Squid Ink (4h)
+# :OC_Bouillabaisse: Bouillabaisse (8h)
+# :OC_SquidInk: Squid Ink (4h)
+# :OC_Bouillabaisse: Bouillabaisse (8h)
 
-# :OC_BoiledEgg: Boiled Egg (4h)
-# :OC_Earrings: Earrings (4h)
-# :OC_BoiledEgg: Boiled Egg (4h)
-# :OC_Earrings: Earrings (4h)
-# :OC_BoiledEgg: Boiled Egg (4h)
-# :OC_Isloaf: Isloaf (4h)
+# :OC_Dressing: Dressing (4h)
+# :OC_Honey: Honey (4h)
+# :OC_Dressing: Dressing (4h)
+# :OC_SquidInk: Squid Ink (4h)
+# :OC_Bouillabaisse: Bouillabaisse (8h)
 
 # 	4
-# :OC_Natron: Natron (4h)
+# :OC_Isloaf: Isloaf (4h)
+# :OC_GrowthFormula: Growth Formula (8h)
+# :OC_Isloaf: Isloaf (4h)
+# :OC_GrowthFormula: Growth Formula (8h)
+
+# :OC_CulinaryKnife: Culinary Knife (4h)
+# :OC_GardenScythe: Garden Scythe (6h)
 # :OC_SharkOil: Shark Oil (8h)
-# :OC_Natron: Natron (4h)
-# :OC_SharkOil: Shark Oil (8h)
-
-# :OC_BakedPumpkin: Baked Pumpkin (4h)
-# :OC_OnionSoup: Onion Soup (6h)
-# :OC_BakedPumpkin: Baked Pumpkin (4h)
-# :OC_OnionSoup: Onion Soup (6h)
-# :OC_BakedPumpkin: Baked Pumpkin (4h)
-
-# 	5
-# :OC_PopotoSalad: Popoto Salad (4h)
-# :OC_Bouillabaisse: Bouillabaisse (8h)
-# :OC_IslefishPie: Islefish Pie (6h)
-# :OC_PumpkinPudding: Pumpkin Pudding (6h)
-
-# 6
-# :OC_Brush: Brush (4h)
 # :OC_GardenScythe: Garden Scythe (6h)
-# :OC_SilverEarCuffs: Silver Ear Cuffs (8h)
-# :OC_GardenScythe: Garden Scythe (6h)
-
-# :OC_Rope: Rope (4h)
-# :OC_Bed: Bed (8h)
-# :OC_Stove: Stove (6h)
-# :OC_GardenScythe: Garden Scythe (6h)
-
-# 7
-# :OC_Brush: Brush (4h)
-# :OC_Crook: Crook (8h)
-# :OC_Brush: Brush (4h)
-# :OC_Crook: Crook (8h)
-
-# :OC_BuffaloBeanSalad: Buffalo Bean Salad (4h)
-# :OC_Hora: Hora (6h)
-# :OC_BuffaloBeanSalad: Buffalo Bean Salad (4h)
-# :OC_Hora: Hora (6h)
-# :OC_BuffaloBeanSalad: Buffalo Bean Salad (4h)
 # 	""", 
-# 	week_num=9, pred_cycle=4)
+# 	week_num=10, pred_cycle=3)
+
+
 	# for pred_cycle in range(3, 4):
 	# 	plan_to_image(8, pred_cycle, "Seal")
 
